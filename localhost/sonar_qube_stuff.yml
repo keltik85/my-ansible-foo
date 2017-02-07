@@ -1,0 +1,120 @@
+---
+- hosts: localhost
+  connection: local
+  tasks:
+    ### based on http://dev.mamikon.net/installing-sonarqube-on-ubuntu/
+    - apt: pkg=python-pip state=present
+    - apt: name=python-setuptools state=latest
+    - apt: name=python-dev state=present
+    - apt: name=libmysqlclient-dev state=latest
+    - pip: name=MySQL-python
+    - mysql_db:
+        name: sonar
+        state: present
+        login_host: localhost
+        login_port: 3306
+        login_user: root
+        login_password: root
+        encoding: utf8
+        collation: utf8_general_ci
+
+    # check if user exists
+    - shell: mysql -u root -e 'select user from mysql.user where User = "sonar";'
+      environment:
+        MYSQL_PWD: root
+      register: result
+
+    # create the user, the stupid "mysql_user" module does not suport "when" and "register"
+    - mysql_user:
+        name: sonar
+        password: sonar
+        state: present
+        login_host: localhost
+        login_port: 3306
+        login_user: root
+        login_password: root
+
+    # only do it if user did not exists before
+    - shell: mysql -u root -proot -e 'GRANT ALL ON sonar.* TO "sonar"@"%" IDENTIFIED BY "sonar";'
+      environment:
+        MYSQL_PWD: root
+      when: "'\nsonar' not in '{{result.stdout}}'"
+
+    # only do it if user did not exists before
+    - shell: mysql -u root -e 'GRANT ALL ON sonar.* TO "sonar"@"localhost" IDENTIFIED BY "sonar";'
+      environment:
+        MYSQL_PWD: root
+      when: "'\nsonar' not in '{{result.stdout}}'"
+
+    # only do it if user did not exists before
+    - shell: mysql -u root -e 'FLUSH PRIVILEGES;'
+      environment:
+        MYSQL_PWD: root
+      when: "'\nsonar' not in '{{result.stdout}}'"
+
+    - get_url:
+        url: "https://sonarsource.bintray.com/Distribution/sonarqube/sonarqube-5.6.4.zip"
+        dest: /mnt/hdd2/sonarqube-5.6.4.zip
+        mode: 0777
+
+    - unarchive:
+        src: /mnt/hdd2/sonarqube-5.6.4.zip
+        dest: /mnt/hdd2
+
+    - lineinfile:
+        dest: /mnt/hdd2/sonarqube-5.6.4/conf/sonar.properties
+        line: 'sonar.jdbc.username=sonar'
+
+    - lineinfile:
+        dest: /mnt/hdd2/sonarqube-5.6.4/conf/sonar.properties
+        line: 'sonar.jdbc.password=sonar'
+
+    - lineinfile:
+        dest: /mnt/hdd2/sonarqube-5.6.4/conf/sonar.properties
+        line: 'sonar.jdbc.url=jdbc:mysql://localhost:3306/sonar?useUnicode=true&characterEncoding=utf8&rewriteBatchedStatements=true&useConfigs=maxPerformance'
+
+    - lineinfile:
+        dest: /mnt/hdd2/sonarqube-5.6.4/conf/sonar.properties
+        line: 'sonar.web.host=127.0.0.1'
+
+    - lineinfile:
+        dest: /mnt/hdd2/sonarqube-5.6.4/conf/sonar.properties
+        line: 'sonar.web.context=/sonar'
+
+    - lineinfile:
+        dest: /mnt/hdd2/sonarqube-5.6.4/conf/sonar.properties
+        line: 'sonar.web.port=9000'
+
+    - get_url:
+        url: "https://sonarsource.bintray.com/Distribution/sonar-scanner-cli/sonar-scanner-2.8.zip"
+        dest: /mnt/hdd2/sonar-scanner-2.8.zip
+        mode: 0777
+
+    - unarchive:
+        src: /mnt/hdd2/sonar-scanner-2.8.zip
+        dest: /mnt/hdd2
+
+    - lineinfile:
+        dest: /mnt/hdd2/sonar-scanner-2.8/conf/sonar-scanner.properties
+        line: 'sonar.host.url=http://localhost:9000/sonar'
+
+    - lineinfile:
+        dest: /mnt/hdd2/sonar-scanner-2.8/conf/sonar-scanner.properties
+        line: 'sonar.sourceEncoding=UTF-8'
+
+    - lineinfile:
+        dest: /mnt/hdd2/sonar-scanner-2.8/conf/sonar-scanner.properties
+        line: 'sonar.jdbc.username=sonar'
+
+    - lineinfile:
+        dest: /mnt/hdd2/sonar-scanner-2.8/conf/sonar-scanner.properties
+        line: 'sonar.jdbc.password=sonar'
+
+    - lineinfile:
+        dest: /mnt/hdd2/sonar-scanner-2.8/conf/sonar-scanner.properties
+        line: 'sonar.jdbc.url=jdbc:mysql://localhost:3306/sonar?useUnicode=true&amp;characterEncoding=utf8'
+
+####start the sonar server by: "sudo /mnt/hdd2/sonarqube-5.6.4/bin/linux-x86-64/sonar.sh start"
+####stop                     : "sudo /mnt/hdd2/sonarqube-5.6.4/bin/linux-x86-64/sonar.sh stop"
+####check sonar-scanenr install: "/mnt/hdd2/sonar-scanner-2.8/bin/sonar-scanner -v"
+#mysql -u root -proot -e 'show databases;'

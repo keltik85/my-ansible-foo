@@ -1,0 +1,42 @@
+---
+- hosts: localhost
+  connection: local
+  tasks:
+    - ping:
+    - apt: name=apache2 state=latest
+      register: installed_apache2
+    - apt: name=apache2-doc state=latest
+      register: installed_apache2Doc
+    - apt: name=libapache2-mod-php state=present
+      register: installed_php
+    - copy: src=files/index.php dest=/var/www/html/index.php mode=0777
+    - service: name=apache2 state=restarted enabled=yes
+      when: installed_apache2.changed == True or installed_apache2Doc.changed == True or installed_php.changed == True
+    - shell: curl localhost/index.php
+    - apt: deb=https://atom.io/download/deb
+    - apt: name="{{item}}" state=latest
+      with_items:
+        - virtualbox
+        - virtualbox-qt
+        - virtualbox-dkms
+    - apt: deb=http://releases.hashicorp.com/vagrant/1.9.1/vagrant_1.9.1_x86_64.deb
+    - apt: name=mtpaint state=latest
+    - tomcat:
+      tags: testcustommodule
+    - apt: deb=https://download.teamviewer.com/download/teamviewer_i386.deb
+      tags: teamviewer
+    - apt: name=php-mysqli state=latest
+      tags: mysql
+
+  # Create a ext2 filesystem on /dev/sdb1.
+  # - filesystem:
+  #     fstype: ext2
+  #     dev: /dev/sdb1
+
+  #download jdk
+  #unzip it
+  #set JAVA_HOME
+
+  #download eclipse neon
+  #unzip it
+  #make shortcut to menu
